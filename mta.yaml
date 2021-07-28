@@ -1,0 +1,113 @@
+_schema-version: '3.2'
+ID: helloworld
+version: 0.0.9
+modules:
+  - name: helloworld-approuter
+    type: approuter.nodejs
+    path: helloworld-approuter
+    requires:
+      - name: helloworld-uaa
+      - name: helloworld_html_repo_runtime
+      - name: helloworld-dest-srv
+        group: destinations
+        properties:
+          forwardAuthToken: false
+          name: ui5
+          url: 'https://ui5.sap.com'
+      - name: backend-srv
+        group: destinations
+        properties:
+          forwardAuthToken: true
+          name: srv-api
+          url: '~{srv-url}'
+    parameters:
+      disk-quota: 256M
+      memory: 256M
+    build-parameters:
+      build-result: .
+      ignore: [".gitignore", "node_modules/"]
+    # properties:
+      # TENANT_HOST_PATTERN: 'approuter-(.*).cfapps.eu10.hana.ondemand.com'
+    # properties:
+    #   SEND_XFRAMEOPTIONS: false
+    #   destinations:
+    #     - name: srv-api
+    #       url: ~{backend-srv/srv-url}
+    #       forwardAuthToken: true
+  - name: helloworld_ui_deployer
+    type: com.sap.application.content
+    path: .
+    requires:
+      - name: helloworld_html_repo_host
+        parameters:
+          content-target: true
+    build-parameters:
+      build-result: resources
+      requires:
+        - artifacts:
+            - uiworld.zip
+          name: uiworld
+          target-path: resources/
+  - name: uiworld
+    type: html5
+    path: uiworld
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm install
+        - 'npm run build:cf'
+      supported-platforms: []
+  - name: srvpart
+    type: java
+    path: srvpart
+    build-parameters:
+      build-result: 'application/target/*.jar'
+      builder: maven
+    requires:
+      - name: helloworld-dest-srv
+    provides:
+      - name: backend-srv
+        properties:
+          srv-url: '${default-url}'
+resources:
+  - name: helloworld_html_repo_runtime
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: html5-apps-repo
+      service-plan: app-runtime
+  - name: helloworld_html_repo_host
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: html5-apps-repo
+      service-plan: app-host
+  - name: helloworld-dest-srv
+    type: org.cloudfoundry.managed-service
+    parameters:
+      config:
+        HTML5Runtime_enabled: true
+        init_data:
+          instance:
+            destinations:
+              - Authentication: NoAuthentication
+                Name: ui5
+                ProxyType: Internet
+                Type: HTTP
+                URL: 'https://ui5.sap.com'
+            existing_destinations_policy: update
+        version: 1.0.0
+      service: destination
+      service-name: helloworld-dest-srv
+      service-plan: lite
+  - name: helloworld-uaa
+    type: com.sap.xs.uaa
+    parameters:
+      service: xsuaa
+      service-plan: application
+      path: ./xs-security.json
+      config:
+        xsappname: helloworld-${space}
+        tenant-mode: dedicated
+
+parameters:
+  deploy_mode: html5-repo
