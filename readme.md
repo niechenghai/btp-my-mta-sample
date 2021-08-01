@@ -10,3 +10,7 @@
 - 7 add route in xs-app.json for approuter
 - 8 deploy
 
+
+### 说明 ###
+
+添加了授权与认证信息，部署框架成功，但无具体实现代码。
